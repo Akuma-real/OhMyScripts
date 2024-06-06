@@ -27,10 +27,14 @@ chmod 600 ~/.ssh/authorized_keys
 echo "Enabling public key authentication in sshd_config..."
 sed -i 's/^#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config
 
-# 禁用root的密码登录
-echo "Disabling root password login in sshd_config..."
-sed -i 's/^PermitRootLogin yes/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
-sed -i 's/^PermitRootLogin without-password/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
+# 设置 PermitRootLogin 为 without-password
+echo "Setting PermitRootLogin to without-password in sshd_config..."
+sed -i 's/^PermitRootLogin .*/PermitRootLogin without-password/' /etc/ssh/sshd_config
+
+# 禁用密码认证
+echo "Disabling password authentication in sshd_config..."
+sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
 
 # 重启SSH服务
 echo "Restarting SSH service..."
@@ -41,4 +45,4 @@ else
     echo "Failed to restart SSH service."
 fi
 
-echo "SSH key login configuration completed. Root password login has been disabled."
+echo "SSH key login configuration completed. Root password login has been disabled, password authentication disabled."
