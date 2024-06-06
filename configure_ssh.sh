@@ -5,23 +5,40 @@ PUBLIC_KEY="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCybZq+l2HyVoHSa45b0v07yNap5KgD
 
 # 确保 ~/.ssh 目录存在
 if [ ! -d ~/.ssh ]; then
+  echo "Creating .ssh directory..."
   mkdir ~/.ssh
   chmod 700 ~/.ssh
+  echo ".ssh directory created and permissions set."
+else
+  echo ".ssh directory already exists."
 fi
 
 # 将公钥添加到 ~/.ssh/authorized_keys
+echo "Adding public key to ~/.ssh/authorized_keys..."
 echo "$PUBLIC_KEY" >> ~/.ssh/authorized_keys
+if [ $? -eq 0 ]; then
+    echo "Public key added successfully."
+else
+    echo "Failed to add public key."
+fi
 chmod 600 ~/.ssh/authorized_keys
 
 # 启用公钥认证
+echo "Enabling public key authentication in sshd_config..."
 sed -i 's/^#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config
 
 # 禁用root的密码登录
+echo "Disabling root password login in sshd_config..."
 sed -i 's/^PermitRootLogin yes/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
 sed -i 's/^PermitRootLogin without-password/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
 
 # 重启SSH服务
-echo "正在重启SSH服务..."
+echo "Restarting SSH service..."
 systemctl restart sshd
+if [ $? -eq 0 ]; then
+    echo "SSH service restarted successfully."
+else
+    echo "Failed to restart SSH service."
+fi
 
-echo "SSH密钥登录配置完成，已禁用root密码登录。"
+echo "SSH key login configuration completed. Root password login has been disabled."
