@@ -52,5 +52,17 @@ else
     exit 1
 fi
 
+# 安装 pnpm
+print_message $BLUE "开始安装 pnpm..."
+{
+    npm install -g pnpm &>/dev/null
+} & spinner
+if [ $? -eq 0 ]; then
+    print_message $GREEN "pnpm 安装成功!"
+else
+    print_message $RED "pnpm 安装失败，请检查 npm 是否已正确安装。"
+    exit 1
+fi
+
 # 提示构建完成
-print_message $YELLOW "Alist 项目克隆完成，您现在可以进入相应的目录进行后续操作。"
+print_message $YELLOW "Alist 项目克隆完成并且 pnpm 安装成功，您现在可以进入相应的目录进行后续操作。"
