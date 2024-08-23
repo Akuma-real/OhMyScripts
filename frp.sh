@@ -18,10 +18,10 @@ FRP_VERSION="0.60.0"
 
 # 打印欢迎信息
 echo -e "${GREEN}==========================================="
-echo -e "          欢迎使用 FRP 安装/更新/卸载脚本"
+echo -e "          欢迎使用 FRP 安装/更新/卸载/管理脚本"
 echo -e "===========================================${RESET}"
 echo ""
-echo -e "${YELLOW}此脚本将帮助您自动安装、更新或卸载 FRP。${RESET}"
+echo -e "${YELLOW}此脚本将帮助您自动安装、更新、卸载 FRP，并管理 FRP 服务。${RESET}"
 echo ""
 
 # 权限检查
@@ -90,6 +90,81 @@ function print_version_info() {
     echo ""
 }
 
+# 创建 systemd 服务文件
+function create_systemd_service() {
+    local component="$1"
+    local install_dir="$2"
+    local service_name="$3"
+    local config_file="$4"
+
+    echo -e "${BLUE}正在创建 ${service_name} 的 systemd 服务文件...${RESET}"
+
+    sudo tee /etc/systemd/system/${service_name}.service > /dev/null <<EOF
+[Unit]
+Description=${component} service
+After=network.target syslog.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=${install_dir}/${component} -c ${config_file}
+Restart=on-failure
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo systemctl daemon-reload
+    echo -e "${GREEN}${service_name} 的 systemd 服务文件创建完成！${RESET}"
+}
+
+# 管理 systemd 服务
+function manage_service() {
+    local service_name="$1"
+    echo -e "${GREEN}请选择您要对 ${service_name} 执行的操作：${RESET}"
+    echo -e "${BLUE}1) 启动${service_name}${RESET}"
+    echo -e "${BLUE}2) 停止${service_name}${RESET}"
+    echo -e "${BLUE}3) 重启${service_name}${RESET}"
+    echo -e "${BLUE}4) 查看状态${service_name}${RESET}"
+    echo -e "${BLUE}5) 设置开机自启${service_name}${RESET}"
+    echo -e "${BLUE}6) 取消开机自启${service_name}${RESET}"
+    echo -e "${BLUE}7) 返回${RESET}"
+    read -p "请输入数字选择: " action_choice
+
+    case "$action_choice" in
+        1)
+            sudo systemctl start ${service_name}
+            echo -e "${GREEN}${service_name} 已启动。${RESET}"
+            ;;
+        2)
+            sudo systemctl stop ${service_name}
+            echo -e "${GREEN}${service_name} 已停止。${RESET}"
+            ;;
+        3)
+            sudo systemctl restart ${service_name}
+            echo -e "${GREEN}${service_name} 已重启。${RESET}"
+            ;;
+        4)
+            sudo systemctl status ${service_name}
+            ;;
+        5)
+            sudo systemctl enable ${service_name}
+            echo -e "${GREEN}${service_name} 已设置为开机自启。${RESET}"
+            ;;
+        6)
+            sudo systemctl disable ${service_name}
+            echo -e "${GREEN}${service_name} 已取消开机自启。${RESET}"
+            ;;
+        7)
+            echo -e "${YELLOW}返回上级菜单。${RESET}"
+            ;;
+        *)
+            echo -e "${RED}无效的选择，请重试。${RESET}"
+            ;;
+    esac
+}
+
 # 下载和安装 FRP
 function download_and_install_frp() {
     local component="$1"
@@ -150,10 +225,15 @@ function check_for_update() {
 function uninstall_frp() {
     local component="$1"
     local install_dir="$2"
+    local service_name="$3"
 
     if [ -d "$install_dir" ]; then
+        sudo systemctl stop ${service_name}
+        sudo systemctl disable ${service_name}
         rm -rf "$install_dir"
-        echo -e "${GREEN}${component} 已成功卸载！${RESET}"
+        sudo rm /etc/systemd/system/${service_name}.service
+        sudo systemctl daemon-reload
+        echo -e "${GREEN}${component} 已成功卸载并移除 systemd 服务文件！${RESET}"
     else
         echo -e "${RED}未检测到已安装的 ${component}。${RESET}"
     fi
@@ -193,11 +273,13 @@ function main() {
     echo -e "${BLUE}2) 安装/更新 FRPC（客户端）${RESET}"
     echo -e "${BLUE}3) 卸载 FRPS（服务器端）${RESET}"
     echo -e "${BLUE}4) 卸载 FRPC（客户端）${RESET}"
-    echo -e "${BLUE}5) 退出${RESET}"
+    echo -e "${BLUE}5) 管理 FRPS 服务（启动/停止/重启/状态/自启）${RESET}"
+    echo -e "${BLUE}6) 管理 FRPC 服务（启动/停止/重启/状态/自启）${RESET}"
+    echo -e "${BLUE}7) 退出${RESET}"
     read -p "请输入数字选择: " step_choice
 
     # 验证用户输入
-    if [[ ! "$step_choice" =~ ^[1-5]$ ]]; then
+    if [[ ! "$step_choice" =~ ^[1-7]$ ]]; then
         echo -e "${RED}无效的选择，脚本将退出。${RESET}"
         exit 1
     fi
@@ -207,6 +289,7 @@ function main() {
             check_for_update "frps" "$frps_version_local" "$FRP_VERSION"
             if [ $? -eq 0 ]; then
                 download_and_install_frp "frps" "$FRPS_DIR"
+                create_systemd_service "frps" "$FRPS_DIR" "frps" "${FRPS_DIR}/frps.toml"
                 post_installation_summary "$FRPS_DIR" "frps"
             fi
             ;;
@@ -214,16 +297,23 @@ function main() {
             check_for_update "frpc" "$frpc_version_local" "$FRP_VERSION"
             if [ $? -eq 0 ]; then
                 download_and_install_frp "frpc" "$FRPC_DIR"
+                create_systemd_service "frpc" "$FRPC_DIR" "frpc" "${FRPC_DIR}/frpc.toml"
                 post_installation_summary "$FRPC_DIR" "frpc"
             fi
             ;;
         3)
-            uninstall_frp "frps" "$FRPS_DIR"
+            uninstall_frp "frps" "$FRPS_DIR" "frps"
             ;;
         4)
-            uninstall_frp "frpc" "$FRPC_DIR"
+            uninstall_frp "frpc" "$FRPC_DIR" "frpc"
             ;;
         5)
+            manage_service "frps"
+            ;;
+        6)
+            manage_service "frpc"
+            ;;
+        7)
             echo -e "${YELLOW}脚本已退出。${RESET}"
             exit 0
             ;;
